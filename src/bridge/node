@@ -11,8 +11,9 @@ except rospy.ROSInterruptException as error:
     exit(1)
 
 device = rospy.get_param("/node/device", 'udp:localhost:14550')
-print('Running with device', device)
-bluerov = BR.BlueRov(device=device)
+camera_info_yaml = rospy.get_param("/node/camera_info_yaml")
+print('Running with device <%s> and camera info yaml file <%s>'%(device,camera_info_yaml))
+bluerov = BR.BlueRov(device=device, camera_info_yaml = camera_info_yaml)
 
 while not rospy.is_shutdown():
     bluerov.publish()

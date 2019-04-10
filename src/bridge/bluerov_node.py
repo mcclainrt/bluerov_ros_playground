@@ -8,6 +8,7 @@ import re
 import rospy
 import sys
 import time
+import yaml
 
 from bridge import Bridge
 
@@ -32,9 +33,42 @@ from sensor_msgs.msg import Imu
 from std_msgs.msg import Bool
 from std_msgs.msg import String
 from std_msgs.msg import UInt16
+from sensor_msgs.msg import CameraInfo
+
+def yaml_to_CameraInfo(yaml_fname):
+    """
+    From https://gist.github.com/rossbar/ebb282c3b73c41c1404123de6cea4771
+    Parse a yaml file containing camera calibration data (as produced by 
+    rosrun camera_calibration cameracalibrator.py) into a 
+    sensor_msgs/CameraInfo msg.
+    
+    Parameters
+    ----------
+    yaml_fname : str
+        Path to yaml file containing camera calibration data
+    Returns
+    -------
+    camera_info_msg : sensor_msgs.msg.CameraInfo
+        A sensor_msgs.msg.CameraInfo message containing the camera calibration
+        data
+    """
+    # Load data from file
+    with open(yaml_fname, "r") as file_handle:
+        calib_data = yaml.load(file_handle)
+    # Parse
+    camera_info_msg = CameraInfo()
+    camera_info_msg.width = calib_data["image_width"]
+    camera_info_msg.height = calib_data["image_height"]
+    camera_info_msg.K = calib_data["camera_matrix"]["data"]
+    camera_info_msg.D = calib_data["distortion_coefficients"]["data"]
+    camera_info_msg.R = calib_data["rectification_matrix"]["data"]
+    camera_info_msg.P = calib_data["projection_matrix"]["data"]
+    camera_info_msg.distortion_model = calib_data["distortion_model"]
+    return camera_info_msg
+
 
 class BlueRov(Bridge):
-    def __init__(self, device='udp:192.168.2.1:14550', baudrate=115200):
+    def __init__(self, device='udp:192.168.2.1:14550', baudrate=115200, camera_info_yaml=None):
         """ BlueRov ROS Bridge
 
         Args:
@@ -42,6 +76,12 @@ class BlueRov(Bridge):
             baudrate (int, optional): Serial baudrate
         """
         super(BlueRov, self).__init__(device, baudrate)
+        
+        # Load yaml file
+        self.camera_info_msg = None
+        if camera_info_yaml:
+            self.camera_info_msg = yaml_to_CameraInfo(camera_info_yaml)
+
         self.pub = Pubs()
         self.sub = Subs()
         self.ROV_name = 'BlueRov2'
@@ -61,6 +101,12 @@ class BlueRov(Bridge):
                 self._create_camera_msg,
                 '/camera/image_raw',
                 Image,
+                1
+            ],
+            [
+                self._create_camera_info_msg,
+                '/camera/camera_info',
+                CameraInfo,
                 1
             ],
             [
@@ -415,6 +461,10 @@ class BlueRov(Bridge):
         bat.percentage = self.get_data()['BATTERY_STATUS']['battery_remaining']/100
         self.pub.set_data('/battery', bat)
 
+    def _create_camera_info_msg(self):
+        if self.camera_info_msg:
+            self.pub.set_data('/camera/camera_info',self.camera_info_msg)
+                          
     def _create_camera_msg(self):
         if not self.video.frame_available():
             return
