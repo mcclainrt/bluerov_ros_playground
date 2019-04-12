@@ -98,13 +98,14 @@ class BlueRov(Bridge):
                 1
             ],
             [
-                self._create_camera_msg,
+                self.pass_function, #tried sending messages together in the if statement below
+#self._create_camera_msg,
                 '/camera/image_raw',
                 Image,
                 1
             ],
             [
-                self._create_camera_info_msg,
+                self.pass_function,
                 '/camera/camera_info',
                 CameraInfo,
                 1
@@ -530,6 +531,9 @@ class BlueRov(Bridge):
 
         self.pub.set_data('/state', string)
 
+    def pass_function(self):
+        pass
+
     def publish(self):
         """ Publish the data in ROS topics
         """
@@ -537,6 +541,11 @@ class BlueRov(Bridge):
         for sender, topic, _, _ in self.pub_topics:
             try:
                 if time.time() - self.mavlink_msg_available[topic] > 1:
+                    # If we have a camera image also publish a info message.
+                    # Second attempt was sending the camera msg in this if statement
+	            if (topic == '/camera/image_raw'):
+                        self._create_camera_msg()
+		        self._create_camera_info_msg()
                     sender()
             except Exception as e:
                 self.mavlink_msg_available[topic] = time.time()
