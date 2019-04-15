@@ -98,19 +98,6 @@ class BlueRov(Bridge):
                 1
             ],
             [
-                self.pass_function, #tried sending messages together in the if statement below
-#self._create_camera_msg,
-                '/camera/image_raw',
-                Image,
-                1
-            ],
-            [
-                self.pass_function,
-                '/camera/camera_info',
-                CameraInfo,
-                1
-            ],
-            [
                 self._create_ROV_state,
                 '/state',
                 String,
@@ -129,7 +116,20 @@ class BlueRov(Bridge):
                 1
             ],
         ]
-
+# camera topics, split from all topics
+        self.pub_cam_topics= [
+            [
+                self._create_camera_msg
+                '/camera/image_raw',
+                Image,
+                1
+            ],
+            [
+                self._create_camera_info_msg,
+                '/camera/camera_info',
+                CameraInfo,
+                1
+            ],
         self.sub_topics= [
             [
                 self._setpoint_velocity_cmd_vel_callback,
@@ -168,6 +168,10 @@ class BlueRov(Bridge):
         self.mavlink_msg_available = {}
 
         for _, topic, msg, queue in self.pub_topics:
+            self.mavlink_msg_available[topic] = 0
+            self._pub_subscribe_topic(topic, msg, queue)
+
+        for _, topic, msg, queue in self.pub_cam_topics: #camera messages, hopefully amends above list/dict
             self.mavlink_msg_available[topic] = 0
             self._pub_subscribe_topic(topic, msg, queue)
 
@@ -530,7 +534,7 @@ class BlueRov(Bridge):
         string.data = str(json.dumps(state, ensure_ascii=False))
 
         self.pub.set_data('/state', string)
-
+# pass function was used to pass on camera and cam info topics
     def pass_function(self):
         pass
 
@@ -541,11 +545,18 @@ class BlueRov(Bridge):
         for sender, topic, _, _ in self.pub_topics:
             try:
                 if time.time() - self.mavlink_msg_available[topic] > 1:
-                    # If we have a camera image also publish a info message.
-                    # Second attempt was sending the camera msg in this if statement
-	            if (topic == '/camera/image_raw'):
-                        self._create_camera_msg()
-		        self._create_camera_info_msg()
+                    sender()
+            except Exception as e:
+                self.mavlink_msg_available[topic] = time.time()
+                print(e)
+
+    def publish_cam(self): # used for just camera topics
+        """ Publish the data in ROS topics
+        """
+        self.update()
+        for sender, topic, _, _ in self.pub_cam_topics:
+            try:
+                if time.time() - self.mavlink_msg_available[topic] > 1:
                     sender()
             except Exception as e:
                 self.mavlink_msg_available[topic] = time.time()
@@ -562,3 +573,4 @@ if __name__ == '__main__':
 
     while not rospy.is_shutdown():
         bluerov.publish()
+        bluerov.publish_cam()
