@@ -98,6 +98,12 @@ class BlueRov(Bridge):
                 1
             ],
             [
+                self._create_camera_msg,
+                '/camera/image_raw',
+                Image,
+                1
+            ],
+            [
                 self._create_ROV_state,
                 '/state',
                 String,
@@ -118,18 +124,19 @@ class BlueRov(Bridge):
         ]
 # camera topics, split from all topics
         self.pub_cam_topics= [
+            #[
+            #    self._create_camera_msg,
+            #    '/camera/image_raw',
+            #    Image,
+            #    1
+            #],
             [
-                self._create_camera_msg
-                '/camera/image_raw',
-                Image,
-                1
-            ],
-            [
-                self._create_camera_info_msg,
+                self.pass_function,
                 '/camera/camera_info',
                 CameraInfo,
                 1
             ],
+        ]
         self.sub_topics= [
             [
                 self._setpoint_velocity_cmd_vel_callback,
@@ -466,9 +473,9 @@ class BlueRov(Bridge):
         bat.percentage = self.get_data()['BATTERY_STATUS']['battery_remaining']/100
         self.pub.set_data('/battery', bat)
 
-    def _create_camera_info_msg(self):
+    """def _create_camera_info_msg(self):
         if self.camera_info_msg:
-            self.pub.set_data('/camera/camera_info',self.camera_info_msg)
+            self.pub.set_data('/camera/camera_info',self.camera_info_msg)"""
                           
     def _create_camera_msg(self):
         if not self.video.frame_available():
@@ -484,7 +491,8 @@ class BlueRov(Bridge):
         msg = self.video_bridge.cv2_to_imgmsg(frame, "bgr8")
         self._create_header(msg)
         msg.step = int(msg.step)
-        self.pub.set_data('/camera/image_raw', msg)
+        if (self.pub.set_data('/camera/image_raw', msg)):
+	    self.pub.set_data('/camera/camera_info',self.camera_info_msg) #publish camerainfo
 
     def _create_ROV_state(self):
         """ Create ROV state message from ROV data
@@ -550,9 +558,8 @@ class BlueRov(Bridge):
                 self.mavlink_msg_available[topic] = time.time()
                 print(e)
 
-    def publish_cam(self): # used for just camera topics
-        """ Publish the data in ROS topics
-        """
+    """def publish_cam(self): # used for just camera topics
+        #Publish the data in ROS topics
         self.update()
         for sender, topic, _, _ in self.pub_cam_topics:
             try:
@@ -560,7 +567,7 @@ class BlueRov(Bridge):
                     sender()
             except Exception as e:
                 self.mavlink_msg_available[topic] = time.time()
-                print(e)
+                print(e)"""
 
 if __name__ == '__main__':
     try:
@@ -573,4 +580,5 @@ if __name__ == '__main__':
 
     while not rospy.is_shutdown():
         bluerov.publish()
-        bluerov.publish_cam()
+        #bluerov.publish_cam()
+

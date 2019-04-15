@@ -38,6 +38,7 @@ class Pubs(object):
             pub (None, optional): rospy.Publisher
         """
 
+	published = False
         # The first item will be empty
         keys = path.split('/')[1:]
         current_level = self.data
@@ -51,12 +52,14 @@ class Pubs(object):
         if value is not {} and 'pub' in current_level:
             try:
                 current_level['pub'].publish(value)
+		published = True
             except Exception as error:
                 print(error)
 
         # Add publisher to dict
         if pub is not None:
             current_level.update({'pub': pub})
+	return published
 
     def subscribe_topic(self, topic, msg_type, queue=1):
         """Update dict with topic
