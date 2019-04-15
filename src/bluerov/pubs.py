@@ -49,6 +49,7 @@ class Pubs(object):
             current_level = current_level[part]
 
         # Publish data (if it exist) to ros topic (path)
+        # I think that this is what actually publishes the message. but not sure
         if value is not {} and 'pub' in current_level:
             try:
                 current_level['pub'].publish(value)
